@@ -34,7 +34,7 @@
   /* Variables de nuestro juego */
 
   /* VARIABLES DE LA PELOTA */
-  const ballRadius = 3;
+  let ballRadius = 3;
   // posicion de la pelota
   let x = canvas.width / 2
   let y = canvas.height - 30
@@ -55,14 +55,21 @@
   let leftPressed = false
 
   /* VARIABLES DE LOS LADRILLOS */
-  const brickRowCount = 6;
-  const brickColumnCount = 13;
+  const brickRowCount = 6;  //6
+  const brickColumnCount = 13;  //13
   const brickWidth = 32;
   const brickHeight = 16;
   const brickPadding = 0;
   const brickOffsetTop = 80;
   const brickOffsetLeft = 16;
   const bricks = [];
+
+  let currentColor = -1;
+  let power = false;
+  let points = 0;
+  let youWin = false;
+
+  const maxPoints = brickColumnCount * brickRowCount;
 
   const BRICK_STATUS = {
     ACTIVE: 1,
@@ -76,7 +83,7 @@
       const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft
       const brickY = r * (brickHeight + brickPadding) + brickOffsetTop
       // Asignar un color aleatorio a cada ladrillo
-      const random = Math.floor(Math.random() * 8)
+      const random = Math.floor(Math.random() * 4)
       // Guardamos la información de cada ladrillo
       bricks[c][r] = {
         x: brickX,
@@ -91,7 +98,7 @@
   function drawBall() {
     ctx.beginPath() // iniciar el trazado
     ctx.arc(x, y, ballRadius, 0, Math.PI * 2)
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle = 'white'
     ctx.fill()
     ctx.closePath() // terminar el trazado
   }
@@ -135,6 +142,9 @@
 
   function drawUI() {
     ctx.fillText(`FPS: ${framesPerSec}`, 5, 10)
+    ctx.fillText(`Color destruido: ${currentColor}`, 5, 20)
+    ctx.fillText(`Power: ${power}`, 5, 30)
+    ctx.fillText(`PUNTOS: ${points}`, 380, 10)
   }
 
   function collisionDetection() {
@@ -154,6 +164,78 @@
         if (isBallSameXAsBrick && isBallSameYAsBrick) {
           dy = -dy
           currentBrick.status = BRICK_STATUS.DESTROYED
+          points += 1;
+
+          if (points >= maxPoints) {
+            youWin = true;
+          }
+
+          if (power) {
+            explode(currentBrick)
+          }
+
+          if (currentColor === currentBrick.color) {
+            ballRadius += 5; // aumentar el tamaño de la pelota
+            power = true;
+          } else {
+            ballRadius -= 5; // disminuir el tamaño de la pelota
+            if (ballRadius <= 3) {
+              ballRadius = 3; // tamaño mínimo de la pelota
+              power = false;
+            } 
+          }
+          currentColor = currentBrick.color
+        }
+      }
+    }
+  }
+
+  function stopBall() {
+    dx = 0;
+    dy = 0;
+  }
+
+  function drawWin() {
+    ctx.font = '48px Roboto';
+    ctx.fillText('YOU WIN!', canvas.width / 2 - 100, canvas.height / 2);
+  }
+
+  function win() {
+    drawWin();
+    //stopBall();
+    gameOver = true;
+    //document.location.reload()
+  }
+
+  function explode(brick) {
+    // efecto de explosión simple: dibujar un círculo rojo en la posición del ladrillo
+    ctx.beginPath();
+    ctx.arc(brick.x + brickWidth / 2, brick.y + brickHeight / 2, 15, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.closePath();
+
+    // destruir ladrillos adyacentes
+    for (let c = -1; c <= 1; c++) {
+      for (let r = -1; r <= 1; r++) {
+        const adjacentCol = (brick.x - brickOffsetLeft) / (brickWidth + brickPadding) + c;
+        const adjacentRow = (brick.y - brickOffsetTop) / (brickHeight + brickPadding) + r;
+
+        if (
+          adjacentCol >= 0 &&
+          adjacentCol < brickColumnCount &&
+          adjacentRow >= 0 &&
+          adjacentRow < brickRowCount
+        ) {
+          const adjacentBrick = bricks[adjacentCol][adjacentRow];
+          if (adjacentBrick.status === BRICK_STATUS.ACTIVE) {
+            adjacentBrick.status = BRICK_STATUS.DESTROYED;
+            points += 1;
+          }
+        }
+
+        if (points >= maxPoints) {
+          youWin = true;
         }
       }
     }
@@ -276,6 +358,14 @@
     collisionDetection()
     ballMovement()
     paddleMovement()
+
+    if (youWin) {
+      // Retardar un poco el dibujo de la pantalla de victoria
+      setTimeout(() => {
+        win();
+      }, 1000);
+      return;
+    }
 
   }
 
